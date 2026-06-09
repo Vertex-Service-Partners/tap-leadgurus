@@ -1,0 +1,50 @@
+version: 1
+send_anonymous_usage_stats: true
+project_id: tap-leadgurus
+default_environment: test
+requires_meltano: '>=4.0'
+environments:
+- name: test
+plugins:
+  extractors:
+  - name: tap-leadgurus
+    namespace: tap_leadgurus
+    pip_url: -e .
+    capabilities:
+    - state
+    - catalog
+    - discover
+    - about
+    - stream-maps
+    settings_group_validation:
+    - [api_key, start_date]
+    settings:
+    - name: api_key
+      kind: string
+      label: API Key
+      description: LeadGurus API key, sent as the X-API-Key header.
+      sensitive: true
+    - name: start_date
+      kind: date_iso8601
+      label: Start Date
+      description: >-
+        Earliest date to sync (YYYY-MM-DD). Floor for the `date_after` filter
+        on leads and summaries.
+    - name: api_url
+      kind: string
+      value: https://clients.leadgurus.com/api/v1
+      label: API URL
+      description: Base URL for the LeadGurus API.
+    - name: lookback_days
+      kind: integer
+      value: 7
+      label: Lookback Days
+      description: >-
+        Days to re-pull before the saved bookmark, to recover records that
+        LeadGurus mutates after creation. Dedup downstream in dbt.
+    config:
+      start_date: '2026-01-01'
+  loaders:
+  - name: target-jsonl
+    variant: andyh1203
+    pip_url: target-jsonl

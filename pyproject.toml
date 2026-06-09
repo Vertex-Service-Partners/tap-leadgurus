@@ -1,0 +1,78 @@
+[build-system]
+requires = [
+    "hatchling>=1.29.0,<2",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "tap-leadgurus"
+version = "0.1.0"
+description = "Singer tap for LeadGurus, built with the Meltano Singer SDK."
+readme = "README.md"
+authors = [{ name = "Vertex Service Partners" }]
+keywords = [
+    "ELT",
+    "LeadGurus",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+license = "Apache-2.0"
+license-files = [ "LICENSE" ]
+requires-python = ">=3.10"
+dependencies = [
+    "singer-sdk~=0.54.4",
+    "requests~=2.34.0",
+    "typing-extensions>=4.5.0; python_version < '3.12'",
+]
+
+[project.scripts]
+# CLI declaration
+tap-leadgurus = 'tap_leadgurus.tap:TapLeadGurus.cli'
+
+[dependency-groups]
+dev = [
+    { include-group = "test" },
+]
+test = [
+    "pytest>=8",
+    "singer-sdk[testing]",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["tap_leadgurus"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+log_level = "INFO"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "COM812",  # missing-trailing-comma (conflicts with formatter)
+]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",  # allow `assert` in tests
+    "D103",  # don't require docstrings in tests
+    "INP001",  # tests is not a namespace package
+    "PLR2004",  # magic values are fine in assertions
+    "E501",  # allow long literal URLs in test fixtures
+    "SLF001",  # tests may touch private helpers
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
