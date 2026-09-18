@@ -65,6 +65,23 @@ class TapLeadGurus(Tap):
                 "recomputed summary rows). Dedup downstream in dbt."
             ),
         ),
+        th.Property(
+            "include_fees",
+            th.BooleanType(),
+            default=False,
+            title="Include Fees",
+            description=(
+                "Send `include_fees=true` on the six summary_* endpoints so "
+                "total_spend, cost_per_lead, cost_per_accepted and "
+                "cost_per_self_book include the LeadGurus management fee "
+                "(the basis on invoices and the LeadGurus dashboard). Off by "
+                "default: ad spend only, exactly as before. Every summary row "
+                "carries fee_rate and spend_includes_fees so the basis received "
+                "is always explicit. Flipping this mid-history mixes bases in "
+                "the raw tables (only the lookback window is re-pulled) — "
+                "full-refresh the summary_* streams when you change it."
+            ),
+        ),
     ).to_dict()
 
     @override

@@ -44,6 +44,19 @@ data exists.
   window are not re-fetched; dbt should treat the latest copy as authoritative.
 - **Money/rate fields are decimal strings** (`"63.10"`) — kept as strings to
   preserve precision; cast in dbt.
+- **Summary spend has two bases** (LeadGurus API update, Sept 2026 / TD-1400).
+  By default the API returns **ad spend only**. With `include_fees: true` the
+  tap sends `include_fees=true` and `total_spend`, `cost_per_lead`,
+  `cost_per_accepted` and `cost_per_self_book` come back with the management
+  fee folded in — the number on LeadGurus invoices and the dashboard (11% for
+  the Vertex roofing clients). Lead counts, rates and revenue fields are the
+  same either way. Every summary row now carries `fee_rate` (decimal string,
+  e.g. `"0.1100"`) and `spend_includes_fees` (bool) so the basis actually
+  served is always explicit in the data. The key itself can also be flipped to
+  fee-inclusive on the LeadGurus Developer API page, which the tap cannot see —
+  trust `spend_includes_fees`, not the config. Changing the basis mid-history
+  mixes bases in the raw tables (only the `lookback_days` window is re-pulled),
+  so **full-refresh the `summary_*` streams whenever you change it.**
 
 ## Config
 
@@ -53,6 +66,7 @@ data exists.
 | `start_date` | ✅ | — | Earliest date (YYYY-MM-DD); floor for `date_after` |
 | `api_url` | | `https://clients.leadgurus.com/api/v1` | API base URL |
 | `lookback_days` | | `7` | Trailing window re-pulled each run |
+| `include_fees` | | `false` | Summary spend with the management fee included (invoice basis) instead of ad spend only |
 
 ## Usage
 
