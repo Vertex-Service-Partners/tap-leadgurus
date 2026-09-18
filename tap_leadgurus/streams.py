@@ -182,6 +182,22 @@ SUMMARY_SCHEMA = th.PropertiesList(
     th.Property("net_sales", th.IntegerType),
     th.Property("gross_amount", th.StringType, description="Decimal string (money)"),
     th.Property("net_amount", th.StringType, description="Decimal string (money)"),
+    # spend basis — added by LeadGurus 2026-09 (TD-1400), present on every
+    # summary row regardless of the `include_fees` setting, so the basis
+    # actually received is always explicit in the data.
+    th.Property(
+        "fee_rate",
+        th.StringType,
+        description='Client management-fee rate as a decimal string, e.g. "0.1100" (11%)',
+    ),
+    th.Property(
+        "spend_includes_fees",
+        th.BooleanType,
+        description=(
+            "True when total_spend / cost_per_lead / cost_per_accepted / "
+            "cost_per_self_book include the management fee (invoice basis)"
+        ),
+    ),
     # dimension-specific (whichever endpoint produced the row)
     th.Property("vertical", th.StringType),
     th.Property("channel_name", th.StringType),
@@ -197,6 +213,15 @@ class _SummaryStream(LeadGurusStream):
 
     All require ``date_after`` (enforced via ``require_date_after``) and are
     incremental on ``date``. ``page_size`` cap here is 1000 (vs 200 for leads).
+
+    **Spend basis.** By default the API returns ad spend only. With the
+    ``include_fees`` config on, the tap adds ``include_fees=true`` and
+    ``total_spend`` / ``cost_per_lead`` / ``cost_per_accepted`` /
+    ``cost_per_self_book`` come back with the LeadGurus management fee folded
+    in (the invoice/dashboard basis). Lead counts, rates and revenue fields are
+    the same either way. Each row's ``spend_includes_fees`` says which basis
+    was actually served — the key can also be flipped to fee-inclusive on the
+    LeadGurus Developer API page, which the tap cannot see.
     """
 
     primary_keys = ("id",)
@@ -204,6 +229,22 @@ class _SummaryStream(LeadGurusStream):
     require_date_after = True
     page_size = 1000
     schema = SUMMARY_SCHEMA
+
+    @override
+    def get_url_params(
+        self,
+        context: Context | None,
+        next_page_token: Any | None,
+    ) -> dict[str, Any]:
+        params = super().get_url_params(context, next_page_token)
+        # First page only: the DRF `next` URL replays every query param
+        # (include_fees along with date_after/page_size), so follow-up pages
+        # already carry it. Only ever send the param when opted in — the API's
+        # documented switch is `include_fees=true`; absence means the key's own
+        # spend-basis setting applies, exactly as before this option existed.
+        if not next_page_token and self.config.get("include_fees"):
+            params["include_fees"] = "true"
+        return params
 
 
 class SummaryClientStream(_SummaryStream):

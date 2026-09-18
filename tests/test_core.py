@@ -90,6 +90,17 @@ def test_summary_schema_carries_spend_and_dimension_fields(tap: TapLeadGurus) ->
         assert field in props
 
 
+def test_summary_schema_carries_spend_basis_fields(tap: TapLeadGurus) -> None:
+    # TD-1400: LeadGurus added these to every summary row (Sept 2026). Without
+    # them in the schema the SDK silently drops them from emitted records.
+    for stream in tap.discover_streams():
+        if not stream.name.startswith("summary_"):
+            continue
+        props = stream.schema["properties"]
+        assert "string" in props["fee_rate"]["type"], stream.name  # "0.1100"
+        assert "boolean" in props["spend_includes_fees"]["type"], stream.name
+
+
 # ---------------------------------------------------------------------------
 # Pagination
 # ---------------------------------------------------------------------------
@@ -125,6 +136,50 @@ def test_first_page_summary_sends_date_after_floor(tap: TapLeadGurus) -> None:
     assert params["page_size"] == 1000
     # No bookmark yet → floor is the configured start_date.
     assert params["date_after"] == "2026-01-01"
+
+
+def test_include_fees_defaults_off_and_sends_nothing(tap: TapLeadGurus) -> None:
+    # Default behavior must be byte-for-byte what the key returned before the
+    # API update: ad spend only, no include_fees param on the wire.
+    assert tap.config.get("include_fees") is False
+    params = SummaryClientStream(tap).get_url_params(None, None)
+    assert "include_fees" not in params
+
+
+def test_include_fees_true_sends_param_on_first_page() -> None:
+    tap = TapLeadGurus(config={**STUB_CONFIG, "include_fees": True})
+    for stream in tap.discover_streams():
+        if stream.name.startswith("summary_"):
+            params = stream.get_url_params(None, None)
+            assert params["include_fees"] == "true", stream.name
+            assert params["date_after"] == "2026-01-01", stream.name
+
+
+def test_include_fees_never_touches_leads_or_clients() -> None:
+    # The switch exists only on the six summary endpoints.
+    tap = TapLeadGurus(config={**STUB_CONFIG, "include_fees": True})
+    for stream in tap.discover_streams():
+        if not stream.name.startswith("summary_"):
+            assert "include_fees" not in stream.get_url_params(None, None), stream.name
+
+
+def test_include_fees_followup_page_replays_next_url_only() -> None:
+    # DRF's `next` link carries include_fees itself; the tap must not re-add
+    # it (or anything) on follow-up pages.
+    from urllib.parse import urlparse  # noqa: PLC0415
+
+    tap = TapLeadGurus(config={**STUB_CONFIG, "include_fees": True})
+    stream = SummaryClientStream(tap)
+    token = urlparse(
+        "https://x/api/v1/summary/client/?page=2&page_size=1000&date_after=2026-02-01&include_fees=true"
+    )
+    params = stream.get_url_params(None, token)
+    assert params == {
+        "page": "2",
+        "page_size": "1000",
+        "date_after": "2026-02-01",
+        "include_fees": "true",
+    }
 
 
 def test_lookback_clamps_to_start_date(tap: TapLeadGurus) -> None:

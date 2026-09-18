@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tap-leadgurus"
-version = "0.1.0"
+version = "0.2.0"
 description = "Singer tap for LeadGurus, built with the Meltano Singer SDK."
 readme = "README.md"
 authors = [{ name = "Vertex Service Partners" }]

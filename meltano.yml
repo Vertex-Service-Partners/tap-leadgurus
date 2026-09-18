@@ -42,6 +42,15 @@ plugins:
       description: >-
         Days to re-pull before the saved bookmark, to recover records that
         LeadGurus mutates after creation. Dedup downstream in dbt.
+    - name: include_fees
+      kind: boolean
+      value: false
+      label: Include Fees
+      description: >-
+        Send include_fees=true on the summary_* endpoints so total_spend and
+        the cost_per_* fields include the LeadGurus management fee (invoice
+        basis). Off = ad spend only, as before. Full-refresh the summary_*
+        streams when changing this, or the raw tables mix bases.
     config:
       start_date: '2026-01-01'
   loaders:
